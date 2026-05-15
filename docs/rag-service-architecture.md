@@ -345,3 +345,46 @@ That is the complete RAG loop.
 | Streaming responses | Nice UX, not required for correctness |
 | LangChain/LlamaIndex Rust crates | Learn primitives first, frameworks later |
 | pgvector instead of Qdrant | Qdrant has better Rust client + vessel_id filter support |
+
+
+
+
+
+
+
+
+
+
+ ┌─────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────┐   
+  │    Technique    │                                        What it does                                         │   
+  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
+  │ Higher top_k    │ Fetch top 20, send top 5 to LLM — more chances of catching scattered chunks                 │   
+  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
+  │ Re-ranking      │ After fetching top 20, run a cross-encoder model to re-score and pick the truly most        │   
+  │                 │ relevant 5                                                                                  │   
+  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
+  │ Hybrid search   │ Combine vector search (semantic) + keyword search (BM25) — catches both meaning and exact   │   
+  │                 │ terms                                                                                       │   
+  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
+  │ Knowledge       │ Link related chunks explicitly — "pipe specs" chunk linked to "pipe failure" chunk          │   
+  │ graphs          │                                                                                             │   
+  └─────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────┘ 
+
+
+
+ ┌────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────┐   
+  │         Technique          │                                   What it does                                   │   
+  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
+  │ Query expansion            │ LLM rewrites the vague question into 3-4 specific versions, search with all of   │   
+  │                            │ them                                                                             │   
+  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
+  │ HyDE (Hypothetical         │ LLM generates a hypothetical answer first, embed that instead of the question —  │   
+  │ Document Embedding)        │ finds chunks closer to answer-space than question-space                          │   
+  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
+  │ Conversation history       │ Include previous messages for context — "what happened with it?" becomes clearer │   
+  │                            │  if the LLM knows "it" = the coolant pipe                                        │   
+  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
+  │ Structured filters         │ Always filter by vessel_id, doc_type — narrows search space even if query is     │   
+  │                            │ vague                                                              
+
+

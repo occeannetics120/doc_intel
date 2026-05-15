@@ -15,7 +15,7 @@ pub async fn upload(mut payload: Multipart ) -> impl Responder{
                 }
 
                 println!("File size: {} kb",(bytes.len()/1000));  //
-                convert_to_string(bytes); //owner ship is moved since bytes doesnt have the copy trait 
+                convert_to_string(bytes).await; //owner ship is moved since bytes doesnt have the copy trait 
 
 
             }

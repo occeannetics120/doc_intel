@@ -1,3 +1,5 @@
+use crate::application::Ingestion::embedder::embedder;
+
 
 
 
@@ -6,8 +8,7 @@ pub struct ChunkInput{
     
 }
 
-pub fn chunker( extracted_file : ChunkInput) {
-
+pub async  fn chunker( extracted_file : ChunkInput) {
 
         let mut chunk_output: Vec<String> = Vec::new(); // manually initialising compulsary  
         let chunk_input_text = extracted_file.text; //owning only the text field other things can be fully used 
@@ -30,6 +31,8 @@ pub fn chunker( extracted_file : ChunkInput) {
 
 
         println!("\n Chunked output = {:?}" , chunk_output);
+
+        embedder(&chunk_output).await;
        
 
 
