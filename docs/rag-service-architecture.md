@@ -26,7 +26,7 @@ fit_voyage_rag_service/ (Rust — Axum)             new service
   └─ POST /search       → vector retrieval
   └─ POST /ask          → RAG (retrieval + LLM)
         │                      │
-   Qdrant :6333          OpenAI API
+   Qdrant :6333          Ollama :11434 (gte-Qwen2-7B, local)
 ```
 
 ---
@@ -49,7 +49,7 @@ fit_voyage_rag_service/
     │   ├── mod.rs
     │   ├── extractor.rs      PDF (lopdf) / DOCX (docx-rs) / TXT → raw String
     │   ├── chunker.rs        500-word chunks, 50-word overlap
-    │   └── embedder.rs       OpenAI text-embedding-3-small (1536 dims)
+    │   └── embedder.rs       Ollama gte-Qwen2-7B (3584 dims, local)
     ├── store/
     │   ├── mod.rs
     │   └── qdrant.rs         upsert + search, compound OR filter by vessel_id / vessel_type / design_type / fleet
@@ -98,9 +98,9 @@ File bytes (PDF / DOCX / TXT)
   Chunk { id: uuid, text: String, metadata: { vessel_id, doc_name, doc_type, chunk_index, doc_scope, scope_id } }
         │
         ▼ embedder.rs
-  POST https://api.openai.com/v1/embeddings
-  model: "text-embedding-3-small"
-  → Vec<Vec<f32>>  (1536 dims per chunk)
+  POST http://localhost:11434/api/embeddings  (Ollama — local, no API key)
+  model: "gte-Qwen2-7B"
+  → Vec<Vec<f32>>  (3584 dims per chunk)
         │
         ▼ qdrant.rs
   collection: "maritime_docs"
@@ -121,7 +121,8 @@ File bytes (PDF / DOCX / TXT)
 POST /ask  { question, vessel_id, vessel_context }
         │
         ▼ embed the question (embedder.rs)
-  → Vec<f32>
+  POST http://localhost:11434/api/embeddings, model: "gte-Qwen2-7B"
+  → Vec<f32>  (3584 dims)
         │
         ▼ qdrant.rs
   search "maritime_docs", top_k: 5, compound OR filter:
@@ -294,7 +295,8 @@ Follows the exact same `HttpService` + `ConfigService` + `firstValueFrom` patter
 
 **`fit_voyage_rag_service/.env`**
 ```
-OPENAI_API_KEY=sk-...
+OLLAMA_URL=http://localhost:11434
+OLLAMA_EMBED_MODEL=gte-Qwen2-7B
 QDRANT_URL=http://localhost:6333
 QDRANT_API_KEY=
 RUST_LOG=info
@@ -316,7 +318,7 @@ RAG_SERVICE_URL=http://localhost:8090
 | 2 | `extractor.rs` — upload PDF, get raw text | POST /documents returns extracted text in debug mode |
 | 3 | `chunker.rs` — text → Vec<Chunk> | unit test: chunk count correct, overlap present |
 | 4 | Qdrant via Docker — create `maritime_docs` collection | Qdrant dashboard at :6333 shows collection |
-| 5 | `embedder.rs` — call OpenAI embeddings | assert `embedding.len() == 1536` |
+| 5 | `embedder.rs` — call Ollama gte-Qwen2-7B embeddings | assert `embedding.len() == 3584` |
 | 6 | `qdrant.rs` — upsert + search | `POST /search` with known phrase returns matching chunk |
 | 7 | `openai.rs` — full RAG prompt + GPT call | `POST /ask` returns grounded answer + source_chunks |
 | 8 | NestJS proxy wired into AiAnalyticsModule | `POST /api/ai/rag/ask` passes through correctly |
