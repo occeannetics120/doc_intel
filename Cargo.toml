@@ -12,3 +12,4 @@ lopdf = "0.40.0"
 pdf-extract = "0.10.0"
 reqwest = { version = "0.13.3", features = ["json"] }
 serde_json = "1.0.149"
+uuid = "1.23.1"
