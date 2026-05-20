@@ -1,3 +1,5 @@
+use std::vec;
+
 use actix_web::{get, http::header::q, post, web };
 use serde_json::{ Value};
 
@@ -7,7 +9,7 @@ use serde_json::{ Value};
 
 
 
-pub async fn embed_qwen_8b( chunks: &Vec<String>) -> Result<serde_json::Value,String>{
+pub async fn embed_qwen_8b( chunks: &Vec<String>) -> Result<Vec<Vec<f32>>,String>{
 
       let client =  reqwest::Client::new();
       let qwen_connector = "http://localhost:11434/api/embed";
@@ -15,12 +17,21 @@ pub async fn embed_qwen_8b( chunks: &Vec<String>) -> Result<serde_json::Value,St
             "model": "qwen3-embedding:8b",
             "input": chunks
       })).send().await;
-
+      let vec_array : Vec<Vec<f32>>;
       match response {
             Ok(resp) =>{
                   // print!("vectors generated : {:?}",resp.json::<serde_json::Value>().await);
-                  resp.json().await.map_err(|e| e.to_string()) //owner ship get's transferred to the caller if it's owned (not a ref)
-                  
+                  let json_resp: Result<serde_json::Value,String> = resp.json().await.map_err(|e| e.to_string()); //owner ship get's transferred to the caller if it's owned (not a ref)
+                  match json_resp {
+                        Ok(jresp) =>{
+                               let vec_array = serde_json::from_value(jresp["embeddings"].clone()).unwrap();
+                               vec_array
+                        }
+
+                        _=>{
+                              Err("There was an error unwrapping json vector response ".to_string())
+                        }
+                  }
             }
             _=>{
                   println!("There was an error ");

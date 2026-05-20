@@ -21,7 +21,7 @@ fit_voyage_backend_nest (NestJS)
        dto/rag.dto.ts                             new
         │ fetches VesselParticularsEntity → passes as vessel_context
         ▼ POST http://localhost:8090/*
-fit_voyage_rag_service/ (Rust — Axum)             new service
+fit_voyage_rag_service/ (Rust — Actix)             new service
   └─ POST /documents    → ingest pipeline
   └─ POST /search       → vector retrieval
   └─ POST /ask          → RAG (retrieval + LLM)
@@ -164,6 +164,24 @@ POST /ask  { question, vessel_id, vessel_context }
 `source_chunks` in the response are the citations — this is what makes answers grounded, not hallucinated.
 
 ---
+
+To be put in the qdrant : 
+ ID
+  - chunk_id — UUID, one per chunk (as you said, to fetch the exact text back after vector search)
+
+  Vector
+  - the embedding float array from qwen
+
+  Payload (metadata for filtering + retrieval)
+  chunk_text    — the actual text of the chunk (so you don't need a separate DB lookup)
+  chunk_index   — position of chunk within the document (0, 1, 2...)
+  doc_name      — which document it came from
+  doc_type      — incident_report / manual / certificate (filter by doc type)
+  doc_scope     — vessel / fleet / vessel_type (filter by scope)
+  vessel_id     — which vessel (filter queries to a specific vessel)
+  scope_id      — Id number of the scope entity
+
+
 
 ## API Contracts
 

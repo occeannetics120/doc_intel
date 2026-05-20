@@ -1,7 +1,8 @@
 use actix_web::cookie::time::ext;
 use uuid::Uuid;
+use std::fs;
 
-use crate::application::Ingestion::{ chunker::{self, ChunkInput}, embedder, extractor};
+use crate::application::Ingestion::{ chunker::{self, ChunkInput}, embedder, extractor, vector_dump};
 
 
 
@@ -9,7 +10,7 @@ use crate::application::Ingestion::{ chunker::{self, ChunkInput}, embedder, extr
 pub struct InjestRequest {
     pub vessel_id: Option<i64>,  
     pub doc_name: Option<String>,
-    pub scope_id: Option<Uuid>,
+    pub scope_id: Option<String>,
     pub doc_scope: Option<String>,  //vessel , fleet , vessel_type 
     pub doc_type: Option<String>, // incident_report , manual , certificate 
     pub file: Vec<u8>,
@@ -44,6 +45,34 @@ pub async  fn ingest_process(injest_input : InjestRequest){
 
 
         let embed_output = embedder::embed_qwen_8b(&chunker_content).await;
+        let embed_vector_content ;
+
+        match embed_output {
+            Ok(content) =>{
+                embed_vector_content = content;
+                // let json_string = serde_json::to_string_pretty(&embed_vector_content).unwrap();
+                // fs::write("vector_example.json", json_string).unwrap();
+                // println!("vectors generated= {:?}",embed_vector_content);
+            }
+            Err(e) =>{
+                println!("There was an error in embedding the vectors ");
+            }
+        }
+
+
+
+        // let vector_dump_output = vector_dump::save_to_qdrant(&injest_input,&chunker_content,&embed_output);
+
+
+
+
+
+
+
+
+
+
+
 
         
 

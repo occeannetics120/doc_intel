@@ -14,7 +14,7 @@ pub async fn upload(mut payload: Multipart) -> impl Responder { //payload is mut
     let  extracted_request: InjestRequest;
     let mut vessel_id: Option<i64> = None;
     let mut doc_name: Option<String> = None;
-    let mut scope_id: Option<Uuid> = None;
+    let mut scope_id: Option<String> = None;
     let mut doc_scope: Option<String> = None;
     let mut doc_type: Option<String> = None;
     let mut file_bytes : Option<Vec<u8>> = None;
@@ -51,15 +51,15 @@ pub async fn upload(mut payload: Multipart) -> impl Responder { //payload is mut
                  }
              }
 
-             Some("scope_id") =>{
-                 let mut bytes = Vec::new();
-                 while let Some(Ok(chunk)) = field.next().await {
-                    bytes.extend_from_slice(&chunk);
-                 }
+            //  Some("scope_id") =>{
+            //      let mut bytes = Vec::new();
+            //      while let Some(Ok(chunk)) = field.next().await {
+            //         bytes.extend_from_slice(&chunk);
+            //      }
 
-                 let value = String::from_utf8(bytes).ok().and_then(|s| s.trim().parse::<Uuid>().ok());
-                 scope_id = value;
-             }
+            //      let value = String::from_utf8(bytes).ok().and_then(|s| s.trim().parse::<Uuid>().ok());
+            //      scope_id = value;
+            //  }
 
              Some("file") =>{   
                     let mut bytes = Vec::new();
@@ -96,7 +96,7 @@ pub async fn upload(mut payload: Multipart) -> impl Responder { //payload is mut
         file:file_bytes.unwrap(),
     };
 
-    pipeline::ingest_process(extracted_request);
+    tokio::spawn(pipeline::ingest_process(extracted_request));
 
     "all files received"
 }
