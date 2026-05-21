@@ -1,5 +1,5 @@
 use actix_multipart::Multipart;
-use actix_web::{Responder, post};
+use actix_web::{Responder, post, web::scope};
 use futures_util::{StreamExt, lock::Mutex};
 use uuid::Uuid;
 
@@ -45,6 +45,7 @@ pub async fn upload(mut payload: Multipart) -> impl Responder { //payload is mut
                       "doc_name"  => doc_name  = value,
                       "doc_scope" => doc_scope = value,
                       "doc_type"  => doc_type  = value,
+                      "scope_id" => scope_id = value,
                       _ => {
 
                       }

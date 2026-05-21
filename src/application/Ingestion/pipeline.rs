@@ -26,7 +26,7 @@ pub async  fn ingest_process(injest_input : InjestRequest){
         let extracted_content ;
         match extracted_output  {
              Ok(text)=>{
-                    println!("Was able to extract content ");  
+                    // println!("Was able to extract content ");  
                     extracted_content = text;  
             }
 
@@ -50,9 +50,10 @@ pub async  fn ingest_process(injest_input : InjestRequest){
         match embed_output {
             Ok(content) =>{
                 embed_vector_content = content;
-                // let json_string = serde_json::to_string_pretty(&embed_vector_content).unwrap();
+                let json_string = serde_json::to_string_pretty(&embed_vector_content).unwrap();
                 // fs::write("vector_example.json", json_string).unwrap();
                 // println!("vectors generated= {:?}",embed_vector_content);
+                vector_dump::save_to_qdrant(&injest_input,&chunker_content,embed_vector_content).await;
             }
             Err(e) =>{
                 println!("There was an error in embedding the vectors ");
@@ -61,7 +62,10 @@ pub async  fn ingest_process(injest_input : InjestRequest){
 
 
 
-        // let vector_dump_output = vector_dump::save_to_qdrant(&injest_input,&chunker_content,&embed_output);
+
+
+
+       
 
 
 
