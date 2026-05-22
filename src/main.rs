@@ -21,6 +21,7 @@ async fn main() -> std::io::Result<()>{
     .service(index)
     .service(api::uploadFiles::upload)
     .service(hello)
+    .service(api::post_main_query::post_main_query)
     .app_data(web::Data::new(reqwest_client.clone()))
     )
     

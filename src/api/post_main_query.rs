@@ -1,0 +1,43 @@
+
+use actix_web::{Responder , post , web};
+
+use crate::{application::{Ingestion::embedder::embed_qwen_8b, main_query::query_qdrant1::{Query1, query_qdrant1}}, main};
+#[derive(serde::Deserialize)]
+pub struct InputMainQuery{
+    question : String
+}
+
+#[post("/query")]
+pub async fn post_main_query(main_query : web::Json<InputMainQuery>) -> impl Responder {
+
+        
+        let mut main_query_embed_input : Vec<String> = Vec ::new() ;
+
+        main_query_embed_input.push(main_query.question.clone());
+
+
+        let main_query = embed_qwen_8b(&main_query_embed_input).await;
+
+
+
+        match main_query {
+            Ok(resp) =>{
+                let query_qdrant1_resp = query_qdrant1(Query1{vectors : resp[0].iter().map(|f| *f as f32).collect()}).await; 
+            }
+
+            Err(e) =>{
+                println!("There was an  error embedding question");
+            }
+        }
+        
+
+
+
+
+
+
+        "Query excecution successfuel"
+
+
+}
+
