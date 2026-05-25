@@ -9,7 +9,7 @@ pub struct Query1 {
 }
 
 
-pub async fn query_qdrant1(question : Query1) -> Result<String,String> {
+pub async fn query_qdrant1(question : Query1) -> Result<Vec<String>,String> {
 
         let qdrant_client = Qdrant::from_url("http://76.13.242.204:6334")
         .build()
@@ -42,7 +42,7 @@ pub async fn query_qdrant1(question : Query1) -> Result<String,String> {
 
 
 
-        Ok(res_chunks.join("\n\n"))
+        Ok(res_chunks)
 
 
 
