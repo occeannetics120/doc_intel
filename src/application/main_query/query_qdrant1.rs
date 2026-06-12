@@ -5,7 +5,8 @@ pub struct Query1 {
     // payload: {
 
     // }
-    pub vectors : Vec<f32>
+    pub vectors : Vec<f32>,
+    pub chunker_type: String
 }
 
 
@@ -17,8 +18,14 @@ pub async fn query_qdrant1(question : Query1) -> Result<Vec<String>,String> {
 
         let mut res_chunks : Vec<String> = Vec::new();
 
+        let mut collection_name = "test_collection";
+
+        if(question.chunker_type == "centroid".to_string()){
+            collection_name = "test_collection_centroid";
+        }
+
         let query_resp = qdrant_client.query(
-            QueryPointsBuilder::new("test_collection")
+            QueryPointsBuilder::new(collection_name)
             .query(question.vectors)
             .with_payload(true)
             .limit(5)

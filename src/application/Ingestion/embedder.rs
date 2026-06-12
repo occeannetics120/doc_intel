@@ -17,13 +17,18 @@ pub async fn embed_qwen_8b( chunks: &Vec<String>) -> Result<Vec<Vec<f64>>,String
             "model": "qwen3-embedding:8b",
             "input": chunks
       })).send().await;
+
+
+
+
+      
       match response {
             Ok(resp) =>{
                   let json_resp: Result<serde_json::Value,String> = resp.json().await.map_err(|e| e.to_string()); //owner ship get's transferred to the caller if it's owned (not a ref)
                   match json_resp {
                         Ok(jresp) =>{
                                let s = jresp.to_string();
-                               println!("jsrep = {:?}",&s[..500]);
+                              //  println!("jsrep = {:?}",&s[..500]);
                                let vec_array = serde_json::from_value(jresp["embeddings"].clone()).unwrap();
                                Ok(vec_array)
                         }

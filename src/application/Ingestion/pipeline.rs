@@ -38,9 +38,9 @@ pub async  fn ingest_process(injest_input : InjestRequest){
 
 
 
-        let chunker_content = chunker::chunk_into_500(ChunkInput{
+        let chunker_content = chunker::chunk_by_centroid_sentence(ChunkInput{
             text: extracted_content,
-        });
+        }).await;
 
 
 
@@ -53,7 +53,7 @@ pub async  fn ingest_process(injest_input : InjestRequest){
                 let json_string = serde_json::to_string_pretty(&embed_vector_content).unwrap();
                 // fs::write("vector_example.json", json_string).unwrap();
                 // println!("vectors generated= {:?}",embed_vector_content);
-                vector_dump::save_to_qdrant(&injest_input,&chunker_content,embed_vector_content).await;
+                vector_dump::save_to_qdrant(&injest_input,&chunker_content,embed_vector_content,"centroid".to_string()).await;
             }
             Err(e) =>{
                 println!("There was an error in embedding the vectors ");

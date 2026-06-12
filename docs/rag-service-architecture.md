@@ -334,11 +334,16 @@ RAG_SERVICE_URL=http://localhost:8090
 |------|------|--------|
 | 1 | Rust scaffold — Axum server on :8090 | `GET /health` → 200 |
 | 2 | `extractor.rs` — upload PDF, get raw text | POST /documents returns extracted text in debug mode |
-| 3 | `chunker.rs` — text → Vec<Chunk> | unit test: chunk count correct, overlap present |
+| 3 | `chunker.rs` — naive word-count chunks (500 words, 50 overlap) → Vec<Chunk> | unit test: chunk count correct, overlap present |
+| 3a | **Improve: semantic chunking** — split text into sentences first; embed each sentence; walk sequentially and compare each new sentence against the **centroid** (average embedding) of the current chunk so far. If cosine similarity < 0.75 OR chunk exceeds 400 words → close chunk, start new one. Centroid is more stable than comparing adjacent sentences directly because it captures the overall topic of the accumulated group, not just the last sentence. | chunks respect topic boundaries; no mid-sentence cuts; related sentences stay together |
 | 4 | Qdrant via Docker — create `maritime_docs` collection | Qdrant dashboard at :6333 shows collection |
 | 5 | `embedder.rs` — call Ollama gte-Qwen2-7B embeddings | assert `embedding.len() == 3584` |
-| 6 | `qdrant.rs` — upsert + search | `POST /search` with known phrase returns matching chunk |
-| 7 | `openai.rs` — full RAG prompt + GPT call | `POST /ask` returns grounded answer + source_chunks |
+| 6 | `qdrant.rs` — upsert + search (pure vector / semantic) | `POST /search` with known phrase returns matching chunk |
+| 6a | **Improve: hybrid search** — add sparse vectors (BM25 keyword index) alongside dense vectors in Qdrant; combine both scores at query time. Catches exact terms (model numbers, part codes) that pure semantic search misses. Qdrant supports this natively. | searching "MAN 6L28/32H" returns the exact-match chunk even if semantic similarity is low |
+| 7 | `openai.rs` — full RAG prompt + GPT call | `POST /ask` returns grounded answer + source_chunks (doc_name, chunk_index per chunk) |
+| 7a | **Improve: re-ranking** — after fetching top 20 from Qdrant, run a cross-encoder model to re-score and select the best 5 to send to LLM. Cross-encoders compare query+chunk together (not independently) so relevance scoring is far more accurate than cosine similarity alone. | top 5 sent to LLM are measurably more relevant than the raw vector top 5 |
+| 7b | **Improve: HyDE (Hypothetical Document Embedding)** — before embedding the question, ask the LLM to write a short hypothetical answer; embed that instead. Answers live closer to answers in vector space than questions do, so retrieval improves. | retrieved chunks match answer-shaped content better than raw question embedding |
+| 7c | **Improve: query expansion** — LLM rewrites the user question into 3-4 specific variants; search with all of them and union the results before re-ranking. Handles vague or short queries. | "what went wrong with the engine?" retrieves chunks that a single embedding would miss |
 | 8 | NestJS proxy wired into AiAnalyticsModule | `POST /api/ai/rag/ask` passes through correctly |
 | 9 | Frontend upload + chat UI | Upload PDF → ask question → see answer with citations |
 
@@ -373,36 +378,36 @@ That is the complete RAG loop.
 
 
 
- ┌─────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────┐   
-  │    Technique    │                                        What it does                                         │   
-  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
-  │ Higher top_k    │ Fetch top 20, send top 5 to LLM — more chances of catching scattered chunks                 │   
-  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
-  │ Re-ranking      │ After fetching top 20, run a cross-encoder model to re-score and pick the truly most        │   
-  │                 │ relevant 5                                                                                  │   
-  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
-  │ Hybrid search   │ Combine vector search (semantic) + keyword search (BM25) — catches both meaning and exact   │   
-  │                 │ terms                                                                                       │   
-  ├─────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┤   
-  │ Knowledge       │ Link related chunks explicitly — "pipe specs" chunk linked to "pipe failure" chunk          │   
-  │ graphs          │                                                                                             │   
-  └─────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────┘ 
+## Advanced Techniques Reference
 
+Grouped by where in the pipeline they apply. The "a/b/c" sub-steps in the Build Sequence above map to these.
 
+### Chunking
 
- ┌────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────┐   
-  │         Technique          │                                   What it does                                   │   
-  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
-  │ Query expansion            │ LLM rewrites the vague question into 3-4 specific versions, search with all of   │   
-  │                            │ them                                                                             │   
-  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
-  │ HyDE (Hypothetical         │ LLM generates a hypothetical answer first, embed that instead of the question —  │   
-  │ Document Embedding)        │ finds chunks closer to answer-space than question-space                          │   
-  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
-  │ Conversation history       │ Include previous messages for context — "what happened with it?" becomes clearer │   
-  │                            │  if the LLM knows "it" = the coolant pipe                                        │   
-  ├────────────────────────────┼──────────────────────────────────────────────────────────────────────────────────┤   
-  │ Structured filters         │ Always filter by vessel_id, doc_type — narrows search space even if query is     │   
-  │                            │ vague                                                              
+| Technique | What it does | Build step |
+|-----------|-------------|------------|
+| Sentence-aware chunking | Split on sentence boundaries before applying size limits — no mid-sentence cuts | 3a |
+| Semantic chunking (centroid-based) | Embed each sentence; maintain a centroid (average of all embeddings in the current chunk); compare new sentence against centroid not the previous sentence — centroid is stable across topic-consistent sentences, drops sharply when meaning shifts. Split on drop below threshold (0.75) OR max word count (400). Per-sentence embeddings are temporary and discarded after chunking; the final chunk is re-embedded as one unit for Qdrant. | 3a |
 
+### Retrieval
 
+| Technique | What it does | Build step |
+|-----------|-------------|------------|
+| Higher top_k | Fetch top 20, send top 5 to LLM — more chances of catching scattered chunks | 6 |
+| Hybrid search | Dense vectors (semantic) + sparse vectors (BM25 keyword) combined — catches both meaning and exact terms like model numbers | 6a |
+| Structured filters | Filter by vessel_id, doc_type, doc_scope — narrows search space before vector scoring | 8 (after MVP) |
+| Knowledge graphs | Post-ingestion step: after all chunks are stored, compare each chunk against all others; if two chunks score high cosine similarity but are far apart in the document, store their IDs as linked in each other's Qdrant payload (`related_chunk_ids: [uuid, uuid]`). At retrieval time, when chunk A is fetched, chunk C is pulled automatically even if the query didn't directly match it. Solves the topic-interleaving problem (related paragraphs separated by unrelated content). | Phase 2 |
+
+### Re-ranking
+
+| Technique | What it does | Build step |
+|-----------|-------------|------------|
+| Cross-encoder re-ranking | After fetching top 20, run a cross-encoder to jointly score query+chunk pairs and pick the best 5 — far more accurate than cosine similarity alone | 7a |
+
+### Query quality
+
+| Technique | What it does | Build step |
+|-----------|-------------|------------|
+| HyDE (Hypothetical Document Embedding) | LLM generates a hypothetical answer first; embed that instead of the raw question — answers live closer to answers in vector space | 7b |
+| Query expansion | LLM rewrites the question into 3-4 variants; search all of them and union results before re-ranking | 7c |
+| Conversation history | Include prior messages so "what happened with it?" resolves correctly if the user already said "it = the coolant pipe" | Phase 2 |

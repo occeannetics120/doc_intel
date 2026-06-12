@@ -9,6 +9,7 @@ use crate::{
 #[derive(serde::Deserialize)]
 pub struct InputMainQuery {
     pub question: String,
+    pub chunker_type: String,
 }
 
 pub struct llmInput {
@@ -27,8 +28,11 @@ pub async fn post_main_query(main_query: web::Json<InputMainQuery>) -> impl Resp
 
     match main_query_embed_req {
         Ok(resp) => {
+
+
             query_qdrant1_resp = query_qdrant1(Query1 {
                 vectors: resp[0].iter().map(|f| *f as f32).collect(),
+                chunker_type: main_query.chunker_type.clone(),
             })
             .await;
             match query_qdrant1_resp {

@@ -34,6 +34,7 @@ pub async fn save_to_qdrant(
     injest_request: &InjestRequest,
     chunks: &Vec<String>,
     vectors: Vec<Vec<f64>>,
+    chunker_type : String
 ) -> Result<(), String> {
     let mut qdrant_insert: Vec<PointStruct> = Vec::new();
     let mut chunk_index = 0;
@@ -93,20 +94,32 @@ pub async fn save_to_qdrant(
     //         println!("there was an error {}" ,e);
     //     }
     // }
+    if(chunker_type == "centroid".to_string()){
+        let create_resp = qdrant_client.create_collection(
+            CreateCollectionBuilder::new("test_collection_centroid")
+                .vectors_config(VectorParamsBuilder::new(4096, Distance::Cosine))
+        ).await;
 
-    let insert_resp = qdrant_client
-        .upsert_points(UpsertPointsBuilder::new("test_collection", qdrant_insert).wait(true))
+        match create_resp {
+            Ok(_) => println!("Collection test_collection_centroid created"),
+            Err(e) => println!("Collection creation skipped: {}", e),
+        }
+
+        let insert_resp = qdrant_client
+        .upsert_points(UpsertPointsBuilder::new("test_collection_centroid", qdrant_insert).wait(true))
         .await;
 
-    match insert_resp {
-        Ok(resp) => {
-            println!("qdrant insert was successful");
-        }
+        match insert_resp {
+            Ok(resp) => {
+                println!("qdrant insert was successful");
+            }
 
-        Err(e) => {
-            println!("there was an error {:?} ", e);
+            Err(e) => {
+                println!("there was an error {:?} ", e);
+            }
         }
     }
+    
 
     Ok(())
     //  while Some(injest_request)
