@@ -1,4 +1,4 @@
-use actix_web::{Responder, post, web};
+use actix_web::{HttpResponse, Responder, post, web};
 
 use crate::{
     application::{
@@ -18,14 +18,14 @@ pub struct llmInput {
 }
 
 #[post("/query")]
-pub async fn post_main_query(main_query: web::Json<InputMainQuery>) -> impl Responder {
+pub async fn post_main_query(main_query: web::Json<InputMainQuery>) -> HttpResponse {
     let mut main_query_embed_input: Vec<String> = Vec::new();
 
     main_query_embed_input.push(main_query.question.clone());
 
     let main_query_embed_req = embed_qwen_8b(&main_query_embed_input).await;
     let query_qdrant1_resp;
-
+    let query_res;
     match main_query_embed_req {
         Ok(resp) => {
 
@@ -42,18 +42,30 @@ pub async fn post_main_query(main_query: web::Json<InputMainQuery>) -> impl Resp
                         chunks: x,
                     };
 
-                     query_llm(llm_query_input).await;
+                     query_res = query_llm(llm_query_input).await;
+
+                     match query_res {
+                         Ok(res) =>{
+                              HttpResponse::Ok().json(res)
+                         }
+
+                         Err(e)=>{
+                             HttpResponse::InternalServerError().body(e)
+                         }
+                     }
 
 
                 }
-                Err(e) => {}
+                Err(e) => {
+                    HttpResponse::InternalServerError().body(e)
+                }
             }
         }
 
         Err(e) => {
             println!("There was an  error embedding question");
+            HttpResponse::InternalServerError().body(e)
         }
     }
 
-    "Query excecution successfuel"
 }

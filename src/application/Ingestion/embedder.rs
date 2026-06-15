@@ -40,7 +40,7 @@ pub async fn embed_qwen_8b( chunks: &Vec<String>) -> Result<Vec<Vec<f64>>,String
             }
             _=>{
                   println!("There was an error ");
-                  Err("There was an error generating embed vectors".to_string())
+                  Err("There was an error generating embed vectors , embedder.rs".to_string())
             }
       }
 

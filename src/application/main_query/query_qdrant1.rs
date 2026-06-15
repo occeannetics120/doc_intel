@@ -34,10 +34,12 @@ pub async fn query_qdrant1(question : Query1) -> Result<Vec<String>,String> {
 
         match query_resp {
             Ok(resp) => {
-                println!("Resp = {:?}",resp);
+                // println!("Resp = {:?}",resp);
                 for point in resp.result {
-                    if let Some(chunk_text) = point.payload.get("chunk_text") {
-                        res_chunks.push(chunk_text.to_string());
+                    if let Some(chunk_val) = point.payload.get("chunk_text") {
+                        if let Some(qdrant_client::qdrant::value::Kind::StringValue(s)) = &chunk_val.kind {
+                            res_chunks.push(s.clone());
+                        }
                     }
                 }
             }
