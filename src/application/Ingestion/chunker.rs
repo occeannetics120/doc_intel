@@ -27,6 +27,30 @@ pub fn chunk_into_500(extracted_file: ChunkInput) -> Vec<String> {
     return chunk_output;
 }
 
+
+pub fn chunk_into_sparse_256(extracted_file: ChunkInput) -> Vec<String> {
+    let mut chunk_output: Vec<String> = Vec::new(); // manually initialising compulsary  
+    let chunk_input_text = extracted_file.text; //owning only the text field other things can be fully used 
+
+    let mut i = 0;
+
+    let words: Vec<&str> = chunk_input_text.split_whitespace().collect();
+    let n = words.len();  // this does copy no borrow is held
+
+    while i < n {
+        let start = if i >= 25 { i - 25 } else { 0 };
+        let end = (i + 250).min(words.len());
+
+        chunk_output.push(words[start..end].join(" "));
+        i = end + 1;
+    }
+
+    // println!("\n Chunked output = {:?}" , chunk_output);
+    return chunk_output;
+}
+
+
+
 pub async fn chunk_by_centroid_sentence(chunk_input: ChunkInput) -> Vec<String> {
     let mut chunk_output: Vec<String> = Vec::new();
 
